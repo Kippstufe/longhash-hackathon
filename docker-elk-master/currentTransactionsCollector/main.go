@@ -10,26 +10,28 @@ import (
 )
 
 func main() {
+	for true {
+		getCurrentOrders()
+	}
+}
+
+func getCurrentOrders() {
 
 	currencies := []string{"JADE.LHT", "JADE.INK", "CYB", "JADE.LHT", "JADE.MT", "JADE.DPY", "JADE.PPT", "JADE.TCT", "JADE.GNX", "JADE.MVP", "JADE.GNT", "JADE.MKR", "JADE.FUN", "JADE.ETH", "JADE.BTC", "JADE.EOS", "JADE.LTC"}
 
-	currentTime := time.Now()
 	for _, origin := range currencies {
 		for _, target := range currencies {
 			fmt.Println("target: ", target)
 			if origin == target {
 				break
 			}
-			for numberQuarters := 0; numberQuarters < 500; numberQuarters++ {
-				fmt.Println(origin, target, numberQuarters)
-				substractedTime := time.Duration(numberQuarters*15) * time.Minute
-				dateStart := currentTime.Add(-substractedTime)
-				dateStop := dateStart.Add(-15 * time.Minute)
-				fmt.Printf("origin: %s, target: %s, dateStart: %s, dateStop: %s, substractedTime: %s, numberQuarters %d \n", origin, target, dateStart, dateStop, substractedTime, numberQuarters)
-				queryOrder(origin, target, dateStart, dateStop)
-			}
+			dateStart := time.Now()
+			dateStop := dateStart.Add(-2 * time.Minute)
+			fmt.Printf("origin: %s, target: %s, dateStart: %s, dateStop: %s", origin, target, dateStart, dateStop)
+			queryOrder(origin, target, dateStart, dateStop)
 		}
 	}
+
 }
 
 func queryOrder(origin, target string, dateStart, dateStop time.Time) {
@@ -71,7 +73,7 @@ func postTransactionsToES(orders responseOrders, reqParams requestParams) {
 
 		client := &http.Client{}
 		newID := currentTransaction.Date + currentTransaction.Side1AccountID
-		elasticSearchURL := fmt.Sprintf("http://elasticsearch:9200/transactions/_doc/%s", newID)
+		elasticSearchURL := fmt.Sprintf("http://localhost:9200/transactions/_doc/%s", newID)
 		request, err := http.NewRequest("POST", elasticSearchURL, strings.NewReader(string(stringTransaction)))
 		if err != nil {
 			fmt.Println("Error creating request", err)

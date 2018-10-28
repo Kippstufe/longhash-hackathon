@@ -62,6 +62,17 @@ services:
       - elasticsearch
     entrypoint:
       - /home/data/entrypoint.sh
+
+  currenttransactionctioncollector:
+    build:
+      context: currentTransactionsCollector/
+    restart: always
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+    entrypoint:
+      - /home/data/entrypoint.sh
 networks:
 
   elk:
