@@ -14,15 +14,15 @@ func main() {
 	currencies := []string{"JADE.LHT", "JADE.INK", "CYB", "JADE.LHT", "JADE.MT", "JADE.DPY", "JADE.PPT", "JADE.TCT", "JADE.GNX", "JADE.MVP", "JADE.GNT", "JADE.MKR", "JADE.FUN", "JADE.ETH", "JADE.BTC", "JADE.EOS", "JADE.LTC"}
 
 	currentTime := time.Now()
-	for _, origin := range currencies {
-		for _, target := range currencies {
-			fmt.Println("target: ", target)
-			if origin == target {
-				break
-			}
-			for numberQuarters := 0; numberQuarters < 500; numberQuarters++ {
+	for numberQuarters := 0; numberQuarters < 50000; numberQuarters++ {
+		for _, origin := range currencies {
+			for _, target := range currencies {
+				fmt.Println("target: ", target)
+				if origin == target {
+					break
+				}
 				fmt.Println(origin, target, numberQuarters)
-				substractedTime := time.Duration(numberQuarters*15) * time.Minute
+				substractedTime := time.Duration(numberQuarters*2) * time.Minute
 				dateStart := currentTime.Add(-substractedTime)
 				dateStop := dateStart.Add(-15 * time.Minute)
 				fmt.Printf("origin: %s, target: %s, dateStart: %s, dateStop: %s, substractedTime: %s, numberQuarters %d \n", origin, target, dateStart, dateStop, substractedTime, numberQuarters)

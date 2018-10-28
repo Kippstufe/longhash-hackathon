@@ -73,7 +73,7 @@ func postTransactionsToES(orders responseOrders, reqParams requestParams) {
 
 		client := &http.Client{}
 		newID := currentTransaction.Date + currentTransaction.Side1AccountID
-		elasticSearchURL := fmt.Sprintf("http://localhost:9200/transactions/_doc/%s", newID)
+		elasticSearchURL := fmt.Sprintf("http://elasticsearch:9200/transactions/_doc/%s", newID)
 		request, err := http.NewRequest("POST", elasticSearchURL, strings.NewReader(string(stringTransaction)))
 		if err != nil {
 			fmt.Println("Error creating request", err)
