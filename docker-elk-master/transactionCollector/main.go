@@ -11,20 +11,21 @@ import (
 
 func main() {
 
-	currencies := map[string][]string{
-		"JADE.BTC":  []string{"CYB", "JADE.LTC", "JADE.LHT"},
-		"JADE.ETH":  []string{"JADE.INK", "CYB", "JADE.LHT", "JADE.MT", "JADE.EOS", "JADE.DPY", "JADE.PPT", "JADE.TCT", "JADE.GNX", "JADE.MVP", "JADE.GNT", "JADE.MKR", "JADE.FUN"},
-		"JADE.USDT": []string{"CYB", "JADE.ETH", "JADE.BTC", "JADE.EOS", "JADE.LTC"},
-	}
+	currencies := []string{"JADE.LHT", "JADE.INK", "CYB", "JADE.LHT", "JADE.MT", "JADE.DPY", "JADE.PPT", "JADE.TCT", "JADE.GNX", "JADE.MVP", "JADE.GNT", "JADE.MKR", "JADE.FUN", "JADE.ETH", "JADE.BTC", "JADE.EOS", "JADE.LTC"}
+
 	currentTime := time.Now()
-	for origin, possibleTargets := range currencies {
-		for _, target := range possibleTargets {
-			for hour := 0; hour < 100; hour++ {
-				fmt.Println(origin, target, hour)
-				substractedTime := time.Duration(hour) * time.Hour
+	for _, origin := range currencies {
+		for _, target := range currencies {
+			fmt.Println("target: ", target)
+			if origin == target {
+				break
+			}
+			for numberQuarters := 0; numberQuarters < 50; numberQuarters++ {
+				fmt.Println(origin, target, numberQuarters)
+				substractedTime := time.Duration(numberQuarters*15) * time.Minute
 				dateStart := currentTime.Add(-substractedTime)
-				dateStop := dateStart.Add(-10 * time.Hour)
-				fmt.Printf("dateStart: %s, dateStop: %s, substractedTime: %s, hour: %d \n", dateStart, dateStop, substractedTime, hour)
+				dateStop := dateStart.Add(-15 * time.Minute)
+				fmt.Printf("origin: %s, target: %s, dateStart: %s, dateStop: %s, substractedTime: %s, numberQuarters %d \n", origin, target, dateStart, dateStop, substractedTime, numberQuarters)
 				queryOrder(origin, target, dateStart, dateStop)
 			}
 		}
@@ -39,7 +40,8 @@ func queryOrder(origin, target string, dateStart, dateStop time.Time) {
 		dateStop:              dateStop.Format("2006-01-02T15:04:05"),
 		MaxNumberTransactions: 100,
 	}
-	// fmt.Printf("dateStart: %s, dateStop: %s \n", dateStart, dateStop)
+	fmt.Printf("dateStart: %s, dateStop: %s \n", dateStart, dateStop)
+	fmt.Printf("%+v", reqParams)
 	body := getDataFromCybex(reqParams)
 
 	orders := responseOrders{}
@@ -48,7 +50,7 @@ func queryOrder(origin, target string, dateStart, dateStop time.Time) {
 	if err != nil {
 		fmt.Println("Not possible to unmarshal json response", err)
 	}
-
+	fmt.Printf("Processed %d transactions", len(orders.Result))
 	postTransactionsToES(orders, reqParams)
 
 }
@@ -65,7 +67,7 @@ func postTransactionsToES(orders responseOrders, reqParams requestParams) {
 		if err != nil {
 			fmt.Println("error marshaling struct", err)
 		}
-		// fmt.Printf("%+v \n", string(stringTransaction))
+		fmt.Printf("%+v \n", string(stringTransaction))
 
 		client := &http.Client{}
 		newID := currentTransaction.Date + currentTransaction.Side1AccountID
@@ -101,7 +103,6 @@ func getDataFromCybex(reqParams requestParams) []byte {
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
 		fmt.Println("Error creating request", err)
-
 	}
 
 	res, err := http.DefaultClient.Do(req)
@@ -113,5 +114,6 @@ func getDataFromCybex(reqParams requestParams) []byte {
 	if err != nil {
 		fmt.Println("Error closing http request", err)
 	}
+	fmt.Println(string(body))
 	return body
 }

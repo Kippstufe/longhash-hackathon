@@ -5,23 +5,27 @@ services:
   elasticsearch:
     build:
       context: elasticsearch/
-      args:
-        ELK_VERSION: $ELK_VERSION
     volumes:
       - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./elasticsearch/data/:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
       - "9300:9300"
     environment:
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ES_JAVA_OPTS: "-Xmx4g -Xms4g"
+      cluster.name: "docker-cluster"
+      bootstrap.memory_lock: "true"
     networks:
       - elk
+    restart: always
+    ulimits:
+        memlock:
+            soft: -1
+            hard: -1
 
   logstash:
     build:
       context: logstash/
-      args:
-        ELK_VERSION: $ELK_VERSION
     volumes:
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
@@ -38,17 +42,26 @@ services:
   kibana:
     build:
       context: kibana/
-      args:
-        ELK_VERSION: $ELK_VERSION
     volumes:
       - ./kibana/config/:/usr/share/kibana/config:ro
     ports:
       - "5601:5601"
+    restart: always
     networks:
       - elk
     depends_on:
       - elasticsearch
 
+  transactioncollector:
+    build:
+      context: transactionCollector/
+    restart: always
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+    entrypoint:
+      - /home/data/entrypoint.sh
 networks:
 
   elk:
