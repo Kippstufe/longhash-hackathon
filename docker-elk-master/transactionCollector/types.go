@@ -34,3 +34,8 @@ type requestParams struct {
 	dateStop              string
 	MaxNumberTransactions int
 }
+
+type channelStruct struct {
+	orders responseOrders
+	params requestParams
+}

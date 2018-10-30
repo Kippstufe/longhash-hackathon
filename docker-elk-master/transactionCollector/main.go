@@ -11,37 +11,55 @@ import (
 
 func main() {
 
-	currencies := []string{"JADE.LHT", "JADE.INK", "CYB", "JADE.LHT", "JADE.MT", "JADE.DPY", "JADE.PPT", "JADE.TCT", "JADE.GNX", "JADE.MVP", "JADE.GNT", "JADE.MKR", "JADE.FUN", "JADE.ETH", "JADE.BTC", "JADE.EOS", "JADE.LTC"}
+	// currencies := []string{"JADE.LHT", "JADE.INK", "CYB", "JADE.LHT", "JADE.MT", "JADE.DPY", "JADE.PPT", "JADE.TCT", "JADE.GNX", "JADE.MVP", "JADE.GNT", "JADE.MKR", "JADE.FUN", "JADE.ETH", "JADE.BTC", "JADE.EOS", "JADE.LTC"}
+
+	currencies := []string{"JADE.ETH", "JADE.BTC"}
+	c1 := make(chan requestParams, 2)
+	c2 := make(chan channelStruct, 2)
+	c3 := make(chan bool, 1)
+	go func() {
+		for {
+			params := <-c1
+			c2 <- channelStruct{queryOrder(params), params}
+		}
+	}()
+
+	go func() {
+		for {
+			channelresponse := <-c2
+			postTransactionsToES(channelresponse.orders, channelresponse.params, c3)
+			<-c3
+		}
+	}()
 
 	currentTime := time.Now()
-	for numberQuarters := 0; numberQuarters < 50000; numberQuarters++ {
+	for numTimeBlocks := 0; numTimeBlocks < 50000; numTimeBlocks++ {
 		for _, origin := range currencies {
 			for _, target := range currencies {
-				fmt.Println("target: ", target)
-				if origin == target {
-					break
+				if origin != target {
+					fmt.Println(origin, target, numTimeBlocks)
+
+					substractedTime := time.Duration(numTimeBlocks*2) * time.Minute
+					dateStart := currentTime.Add(-substractedTime)
+					dateStop := dateStart.Add(-2 * time.Minute)
+
+					reqParams := requestParams{currencyOrigin: origin,
+						currencyTarget:        target,
+						dateStart:             dateStart.Format("2006-01-02T15:04:05"),
+						dateStop:              dateStop.Format("2006-01-02T15:04:05"),
+						MaxNumberTransactions: 100,
+					}
+
+					c1 <- reqParams
+					// postTransactionsToES(orders, reqParams)
 				}
-				fmt.Println(origin, target, numberQuarters)
-				substractedTime := time.Duration(numberQuarters*2) * time.Minute
-				dateStart := currentTime.Add(-substractedTime)
-				dateStop := dateStart.Add(-15 * time.Minute)
-				fmt.Printf("origin: %s, target: %s, dateStart: %s, dateStop: %s, substractedTime: %s, numberQuarters %d \n", origin, target, dateStart, dateStop, substractedTime, numberQuarters)
-				queryOrder(origin, target, dateStart, dateStop)
 			}
 		}
 	}
 }
 
-func queryOrder(origin, target string, dateStart, dateStop time.Time) {
+func queryOrder(reqParams requestParams) responseOrders {
 
-	reqParams := requestParams{currencyOrigin: origin,
-		currencyTarget:        target,
-		dateStart:             dateStart.Format("2006-01-02T15:04:05"),
-		dateStop:              dateStop.Format("2006-01-02T15:04:05"),
-		MaxNumberTransactions: 100,
-	}
-	fmt.Printf("dateStart: %s, dateStop: %s \n", dateStart, dateStop)
-	fmt.Printf("%+v", reqParams)
 	body := getDataFromCybex(reqParams)
 
 	orders := responseOrders{}
@@ -50,24 +68,21 @@ func queryOrder(origin, target string, dateStart, dateStop time.Time) {
 	if err != nil {
 		fmt.Println("Not possible to unmarshal json response", err)
 	}
-	fmt.Printf("Processed %d transactions", len(orders.Result))
-	postTransactionsToES(orders, reqParams)
+	return orders
 
 }
 
-func postTransactionsToES(orders responseOrders, reqParams requestParams) {
+func postTransactionsToES(orders responseOrders, reqParams requestParams, c3 chan bool) {
+	fmt.Println(orders.Result)
 	for _, currentTransaction := range orders.Result {
 
 		currentTransaction.CurrencyOrigin = reqParams.currencyOrigin
 		currentTransaction.CurrencyTarget = reqParams.currencyTarget
 
-		fmt.Printf("%+v \n ", currentTransaction)
-
 		stringTransaction, err := json.Marshal(currentTransaction)
 		if err != nil {
 			fmt.Println("error marshaling struct", err)
 		}
-		fmt.Printf("%+v \n", string(stringTransaction))
 
 		client := &http.Client{}
 		newID := currentTransaction.Date + currentTransaction.Side1AccountID
@@ -88,14 +103,27 @@ func postTransactionsToES(orders responseOrders, reqParams requestParams) {
 		if err != nil {
 			fmt.Println("Error closing http request", err)
 		}
-		fmt.Println(string(body))
+		fmt.Println("Shouldprint")
+		fmt.Println(res.StatusCode, string(body))
 	}
+	c3 <- true
 }
 
 func getDataFromCybex(reqParams requestParams) []byte {
 	url := "https://apihk.cybex.io"
 
-	requestBody := fmt.Sprintf("{\"params\":[\"%s\",\"%s\",\"%s\",\"%s\",%d],\"id\":1,\"jsonrpc\":\"2.0\",\"method\":\"get_trade_history\"}", reqParams.currencyOrigin, reqParams.currencyTarget, reqParams.dateStart, reqParams.dateStop, reqParams.MaxNumberTransactions)
+	requestBody := fmt.Sprintf(
+		`{
+			"params":["%s","%s","%s","%s",%d],
+			"id":1,
+			"jsonrpc":"2.0",
+			"method":"get_trade_history"
+		}`,
+		reqParams.currencyOrigin,
+		reqParams.currencyTarget,
+		reqParams.dateStart,
+		reqParams.dateStop,
+		reqParams.MaxNumberTransactions)
 
 	// fmt.Println(requestBody)
 	payload := strings.NewReader(requestBody)
@@ -114,6 +142,6 @@ func getDataFromCybex(reqParams requestParams) []byte {
 	if err != nil {
 		fmt.Println("Error closing http request", err)
 	}
-	fmt.Println(string(body))
+	// fmt.Println(string(body))
 	return body
 }
